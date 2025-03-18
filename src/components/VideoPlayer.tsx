@@ -1,6 +1,5 @@
-
 import React, { useState, useRef, useEffect } from "react";
-import { Play, Pause, Volume2, VolumeX } from "lucide-react";
+import { Play, Pause, Volume2, VolumeX, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { generateRecipeVideo } from "@/services/recipeService";
@@ -18,14 +17,22 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ recipeId, videoUrl: initialVi
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [generationAttempted, setGenerationAttempted] = useState(false);
+  const [videoError, setVideoError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    // Only auto-generate if the component is mounted with no video URL
-    if (!videoUrl && !isLoading && !generationAttempted) {
-      handleGenerateVideo();
+    if (recipeId) {
+      setVideoError(false);
+      setGenerationAttempted(false);
+      
+      if (initialVideoUrl) {
+        setVideoUrl(initialVideoUrl);
+      } 
+      else if (!isLoading && !generationAttempted) {
+        handleGenerateVideo();
+      }
     }
-  }, [recipeId, videoUrl, isLoading, generationAttempted]);
+  }, [recipeId, initialVideoUrl]);
 
   const togglePlay = () => {
     if (!videoRef.current) return;
@@ -61,15 +68,29 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ recipeId, videoUrl: initialVi
     }
   };
 
+  const handleVideoError = () => {
+    setVideoError(true);
+    setIsLoading(false);
+    toast.error("Could not play the video. Try regenerating.");
+  };
+
   const handleGenerateVideo = () => {
     setIsLoading(true);
+    setVideoError(false);
+    
     generateRecipeVideo(recipeId)
       .then((url) => {
         setVideoUrl(url);
+        setIsPlaying(false);
+        setProgress(0);
+        if (videoRef.current) {
+          videoRef.current.currentTime = 0;
+        }
       })
       .catch((error) => {
         toast.error("Failed to generate video. Please try again.");
         console.error("Error generating video:", error);
+        setVideoError(true);
       })
       .finally(() => {
         setIsLoading(false);
@@ -88,7 +109,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ recipeId, videoUrl: initialVi
               <p className="text-sm text-muted-foreground mt-2">This may take a moment</p>
             </div>
           </div>
-        ) : videoUrl ? (
+        ) : videoUrl && !videoError ? (
           <>
             <video
               ref={videoRef}
@@ -96,6 +117,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ recipeId, videoUrl: initialVi
               className="w-full h-full object-cover"
               onTimeUpdate={handleTimeUpdate}
               onEnded={handleVideoEnd}
+              onError={handleVideoError}
               poster={videoUrl ? undefined : "https://via.placeholder.com/640x360?text=Recipe+Video"}
               controls={false}
             />
@@ -118,14 +140,27 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ recipeId, videoUrl: initialVi
                   {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
                 </Button>
                 
-                <Button 
-                  onClick={toggleMute} 
-                  variant="ghost" 
-                  size="icon" 
-                  className="text-white hover:bg-white/20"
-                >
-                  {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    onClick={handleGenerateVideo} 
+                    variant="ghost" 
+                    size="icon" 
+                    className="text-white hover:bg-white/20"
+                    disabled={isLoading}
+                    title="Regenerate video"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                  
+                  <Button 
+                    onClick={toggleMute} 
+                    variant="ghost" 
+                    size="icon" 
+                    className="text-white hover:bg-white/20"
+                  >
+                    {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                  </Button>
+                </div>
               </div>
             </div>
           </>
@@ -134,8 +169,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ recipeId, videoUrl: initialVi
             <Button
               onClick={handleGenerateVideo}
               className="animate-pulse bg-primary/90 hover:bg-primary"
+              disabled={isLoading}
             >
-              Generate AI Recipe Video
+              {videoError ? "Retry Video Generation" : "Generate AI Recipe Video"}
             </Button>
           </div>
         )}

@@ -1,4 +1,11 @@
+
 import { toast } from "sonner";
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase client
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export interface Ingredient {
   name: string;
@@ -179,18 +186,43 @@ export async function generateRecipeVideo(recipeId: string): Promise<string> {
       throw new Error("Recipe not found");
     }
     
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // First check if we already have a video for this recipe in Supabase
+    const { data: existingVideo, error: fetchError } = await supabase
+      .from('recipe_videos')
+      .select('video_url')
+      .eq('recipe_id', recipeId)
+      .single();
     
+    if (existingVideo && existingVideo.video_url) {
+      toast.success("Recipe video loaded successfully!", { duration: 3000 });
+      return existingVideo.video_url;
+    }
+    
+    // If no existing video, determine the appropriate video based on recipe type
     let videoUrl = "";
     
-    if (recipe.title.toLowerCase().includes("pasta")) {
+    if (recipe.title.toLowerCase().includes("pasta") || recipe.title.toLowerCase().includes("mushroom")) {
       videoUrl = "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
-    } else if (recipe.title.toLowerCase().includes("salad")) {
+    } else if (recipe.title.toLowerCase().includes("salad") || recipe.title.toLowerCase().includes("chickpea")) {
       videoUrl = "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4";
-    } else if (recipe.title.toLowerCase().includes("avocado")) {
+    } else if (recipe.title.toLowerCase().includes("avocado") || recipe.title.toLowerCase().includes("toast")) {
       videoUrl = "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4";
     } else {
       videoUrl = "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+    }
+    
+    // Store the generated video URL in Supabase for future use
+    const { error: insertError } = await supabase
+      .from('recipe_videos')
+      .insert([{ 
+        recipe_id: recipeId, 
+        video_url: videoUrl,
+        created_at: new Date().toISOString() 
+      }]);
+    
+    if (insertError) {
+      console.error("Error storing video URL:", insertError);
+      // Continue even if storage fails - we still have the video URL
     }
     
     toast.success("Recipe video generated successfully!", { duration: 3000 });
@@ -200,6 +232,7 @@ export async function generateRecipeVideo(recipeId: string): Promise<string> {
     console.error("Error generating video:", error);
     toast.error("Failed to generate video. Please try again.");
     
+    // Fallback video if something goes wrong
     return "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
   }
 }
