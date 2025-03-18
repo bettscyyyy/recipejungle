@@ -23,19 +23,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ recipeId, videoUrl: initialVi
   useEffect(() => {
     // Only auto-generate if the component is mounted with no video URL
     if (!videoUrl && !isLoading && !generationAttempted) {
-      setIsLoading(true);
-      generateRecipeVideo(recipeId)
-        .then((url) => {
-          setVideoUrl(url);
-        })
-        .catch((error) => {
-          toast.error("Failed to generate video. Please try again.");
-          console.error("Error generating video:", error);
-        })
-        .finally(() => {
-          setIsLoading(false);
-          setGenerationAttempted(true);
-        });
+      handleGenerateVideo();
     }
   }, [recipeId, videoUrl, isLoading, generationAttempted]);
 
@@ -109,6 +97,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ recipeId, videoUrl: initialVi
               onTimeUpdate={handleTimeUpdate}
               onEnded={handleVideoEnd}
               poster={videoUrl ? undefined : "https://via.placeholder.com/640x360?text=Recipe+Video"}
+              controls={false}
             />
             
             <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
