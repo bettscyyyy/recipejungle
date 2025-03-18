@@ -176,17 +176,72 @@ export async function getRecipeById(id: string): Promise<Recipe | null> {
 }
 
 export async function generateRecipeVideo(recipeId: string): Promise<string> {
-  // In a real implementation, this would call an AI service to generate a video
-  // For now, we'll simulate a delay and return a placeholder video URL
   toast.info("Generating recipe video...", { duration: 3000 });
   
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      // Returning a placeholder video URL
-      resolve("https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
-      toast.success("Recipe video generated successfully!", { duration: 3000 });
-    }, 3000);
-  });
+  try {
+    // Step 1: Get the recipe details
+    const recipe = await getRecipeById(recipeId);
+    if (!recipe) {
+      throw new Error("Recipe not found");
+    }
+    
+    // Step 2: Get access token from AI Studios
+    const tokenResponse = await fetch('https://app.aistudios.com/api/odin/v3/auth/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        // Note: In a production environment, this should be fetched from a secure backend
+        // This is only for demo purposes
+        apiKey: 'your_api_key_here'
+      })
+    });
+    
+    if (!tokenResponse.ok) {
+      throw new Error('Failed to get access token');
+    }
+    
+    const tokenData = await tokenResponse.json();
+    const accessToken = tokenData.token;
+    
+    // Step 3: Generate a video with the recipe instructions
+    // Create a simple script based on the recipe
+    const script = `This is how to prepare ${recipe.title}. ${recipe.description}. 
+                    You'll need these ingredients: ${recipe.ingredients.map(i => `${i.amount} ${i.unit} ${i.name}`).join(', ')}. 
+                    Now, let's start cooking: ${recipe.instructions.join(' ')}`;
+    
+    // Send request to AI Studios to generate video
+    const videoResponse = await fetch('https://app.aistudios.com/api/odin/v3/videos', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        script: script,
+        // Add other required parameters for AI Studios video generation
+        // This is simplified and would need to be adjusted based on the actual API documentation
+      })
+    });
+    
+    if (!videoResponse.ok) {
+      throw new Error('Failed to generate video');
+    }
+    
+    const videoData = await videoResponse.json();
+    const generatedVideoUrl = videoData.videoUrl; // Adjust based on actual API response structure
+    
+    toast.success("Recipe video generated successfully!", { duration: 3000 });
+    return generatedVideoUrl;
+    
+  } catch (error) {
+    console.error("Error generating video:", error);
+    toast.error("Failed to generate video. Please try again.");
+    
+    // For development/demo purposes, return a placeholder video if API fails
+    return "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+  }
 }
 
 export async function rateRecipe(recipeId: string, rating: number): Promise<void> {

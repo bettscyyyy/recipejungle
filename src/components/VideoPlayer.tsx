@@ -17,10 +17,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ recipeId, videoUrl: initialVi
   const [isMuted, setIsMuted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [generationAttempted, setGenerationAttempted] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    if (!videoUrl && !isLoading) {
+    // Only auto-generate if the component is mounted with no video URL
+    if (!videoUrl && !isLoading && !generationAttempted) {
       setIsLoading(true);
       generateRecipeVideo(recipeId)
         .then((url) => {
@@ -32,9 +34,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ recipeId, videoUrl: initialVi
         })
         .finally(() => {
           setIsLoading(false);
+          setGenerationAttempted(true);
         });
     }
-  }, [recipeId, videoUrl, isLoading]);
+  }, [recipeId, videoUrl, isLoading, generationAttempted]);
 
   const togglePlay = () => {
     if (!videoRef.current) return;
@@ -70,6 +73,22 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ recipeId, videoUrl: initialVi
     }
   };
 
+  const handleGenerateVideo = () => {
+    setIsLoading(true);
+    generateRecipeVideo(recipeId)
+      .then((url) => {
+        setVideoUrl(url);
+      })
+      .catch((error) => {
+        toast.error("Failed to generate video. Please try again.");
+        console.error("Error generating video:", error);
+      })
+      .finally(() => {
+        setIsLoading(false);
+        setGenerationAttempted(true);
+      });
+  };
+
   return (
     <div className="w-full rounded-xl overflow-hidden glass-card">
       <div className="relative aspect-video">
@@ -77,7 +96,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ recipeId, videoUrl: initialVi
           <div className="absolute inset-0 flex items-center justify-center bg-black/5 backdrop-blur-sm">
             <div className="text-center">
               <Skeleton className="h-32 w-32 rounded-full mx-auto mb-4" />
-              <p className="text-lg font-medium animate-pulse">Generating Recipe Video...</p>
+              <p className="text-lg font-medium animate-pulse">Generating AI Recipe Video...</p>
               <p className="text-sm text-muted-foreground mt-2">This may take a moment</p>
             </div>
           </div>
@@ -89,6 +108,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ recipeId, videoUrl: initialVi
               className="w-full h-full object-cover"
               onTimeUpdate={handleTimeUpdate}
               onEnded={handleVideoEnd}
+              poster={videoUrl ? undefined : "https://via.placeholder.com/640x360?text=Recipe+Video"}
             />
             
             <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
@@ -123,23 +143,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ recipeId, videoUrl: initialVi
         ) : (
           <div className="absolute inset-0 flex items-center justify-center bg-black/10">
             <Button
-              onClick={() => {
-                setIsLoading(true);
-                generateRecipeVideo(recipeId)
-                  .then((url) => {
-                    setVideoUrl(url);
-                  })
-                  .catch((error) => {
-                    toast.error("Failed to generate video. Please try again.");
-                    console.error("Error generating video:", error);
-                  })
-                  .finally(() => {
-                    setIsLoading(false);
-                  });
-              }}
+              onClick={handleGenerateVideo}
               className="animate-pulse bg-primary/90 hover:bg-primary"
             >
-              Generate Recipe Video
+              Generate AI Recipe Video
             </Button>
           </div>
         )}
