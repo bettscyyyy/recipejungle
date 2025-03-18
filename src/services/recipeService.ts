@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 
 export interface Ingredient {
@@ -192,9 +191,7 @@ export async function generateRecipeVideo(recipeId: string): Promise<string> {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        // Note: In a production environment, this should be fetched from a secure backend
-        // This is only for demo purposes
-        apiKey: 'your_api_key_here'
+        apiKey: 'key_e716fa485300d8b31f40a7428e95d5018c42fe5f3584178495f496ec7aefc84746c71277c89192d3040e7801108e266087a321b9749bf578a03bb02f1b08289d'
       })
     });
     
